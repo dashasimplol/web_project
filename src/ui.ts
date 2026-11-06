@@ -118,3 +118,10 @@ export function renderRecipes(recipes: Recipe[]): void {
     recipeList.append(card);
   }
 }
+export function renderMessage(text: string): void {
+    recipeList.innerHTML = "";
+    const p = document.createElement("p");
+    p.textContent = text;
+    recipeList.append(p);
+}
+

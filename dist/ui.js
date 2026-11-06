@@ -100,3 +100,9 @@ export function renderRecipes(recipes) {
         recipeList.append(card);
     }
 }
+export function renderMessage(text) {
+    recipeList.innerHTML = "";
+    const p = document.createElement("p");
+    p.textContent = text;
+    recipeList.append(p);
+}

@@ -5,10 +5,16 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "api": "json-server --watch db.json --port 3001",
+    "watch": "tsc --watch",
+    "serve": "npx serve ."
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "json-server": "^1.0.0-beta.15"
   }
 }

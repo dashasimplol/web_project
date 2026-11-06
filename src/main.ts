@@ -1,14 +1,23 @@
 import type { Category, Recipe, RecipeDraft, RecipeFilter } from "./types.js";
-import { initialRecipes } from "./data.js";
-import { loadRecipes, saveRecipes } from "./storage.js";
+import { fetchRecipes } from "./api.js";
 import { filterAndSortRecipes, createRecipe, updateRecipe, toggleFavorite, deleteRecipe } from "./recipes.js";
 import {
   searchInput, categoryFilter, sortBySelect, favoritesOnly, fastOnly, clearFiltersBtn,
   recipeForm, editRecipeIdInput, formModeTitle, formSubmitBtn, cancelEditBtn, recipeList, formMessage,
-  renderRecipes, renderCategoryCounts
+  renderRecipes, renderCategoryCounts, renderMessage
 } from "./ui.js";
 
-let recipes: Recipe[] = loadRecipes() ?? initialRecipes;
+type LoadState =
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "success"; recipes: Recipe[] };
+
+let state: LoadState = { status: "loading" };
+
+function setState(next: LoadState): void {
+  state = next;
+  render();
+}
 
 function getFilter(): RecipeFilter {
   return {
@@ -21,13 +30,22 @@ function getFilter(): RecipeFilter {
 }
 
 function render(): void {
-  renderCategoryCounts(recipes);
-  renderRecipes(filterAndSortRecipes(recipes, getFilter()));
+  switch (state.status) {
+    case "loading":
+      renderMessage("Загрузка рецептов");
+      break;
+    case "error":
+      renderMessage(`Не удалось загрузить рецепты: ${state.message}`);
+      break;
+    case "success":
+      renderCategoryCounts(state.recipes);
+      renderRecipes(filterAndSortRecipes(state.recipes, getFilter()));
+      break;
+  }
 }
 
-function persistAndRender(): void {
-  saveRecipes(recipes);
-  render();
+function persistAndRender(updatedRecipes: Recipe[]): void {
+  setState({ status: "success", recipes: updatedRecipes });
 }
 
 function resetForm(): void {
@@ -56,6 +74,8 @@ clearFiltersBtn.addEventListener("click", () => {
 cancelEditBtn.addEventListener("click", resetForm);
 
 recipeList.addEventListener("click", (event: MouseEvent) => {
+  if (state.status !== "success") return;
+
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
 
@@ -66,17 +86,19 @@ recipeList.addEventListener("click", (event: MouseEvent) => {
   const action = button.dataset.action;
   if (!id) return;
 
+  let currentRecipes = state.recipes;
+
   if (action === "favorite") {
-    recipes = toggleFavorite(recipes, id);
-    persistAndRender();
+    currentRecipes = toggleFavorite(currentRecipes, id);
+    persistAndRender(currentRecipes);
   } else if (action === "delete") {
     if (confirm("Вы действительно хотите удалить этот рецепт?")) {
-      recipes = deleteRecipe(recipes, id);
+      currentRecipes = deleteRecipe(currentRecipes, id);
       if (editRecipeIdInput.value === id) resetForm();
-      persistAndRender();
+      persistAndRender(currentRecipes);
     }
   } else if (action === "edit") {
-    const targetRecipe = recipes.find(r => r.id === id);
+    const targetRecipe = currentRecipes.find(r => r.id === id);
     if (!targetRecipe) return;
 
     editRecipeIdInput.value = targetRecipe.id;
@@ -96,6 +118,7 @@ recipeList.addEventListener("click", (event: MouseEvent) => {
 });
 
 recipeForm.addEventListener("submit", (event: SubmitEvent) => {
+  if (state.status !== "success") return;
   event.preventDefault();
 
   const formData = new FormData(recipeForm);
@@ -127,16 +150,29 @@ recipeForm.addEventListener("submit", (event: SubmitEvent) => {
     imageUrl: imageUrl
   };
 
+  let currentRecipes = state.recipes;
+
   if (editId) {
-    recipes = updateRecipe(recipes, editId, draft);
+    currentRecipes = updateRecipe(currentRecipes, editId, draft);
     formMessage.textContent = "Рецепт успешно обновлен.";
   } else {
-    recipes = [createRecipe(draft), ...recipes];
+    currentRecipes = [createRecipe(draft), ...currentRecipes];
     formMessage.textContent = "Рецепт добавлен.";
   }
 
   resetForm();
-  persistAndRender();
+  persistAndRender(currentRecipes);
 });
 
-render();
+async function init(): Promise<void> {
+  setState({ status: "loading" });
+  try {
+    const data = await fetchRecipes();
+    setState({ status: "success", recipes: data });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Неизвестная ошибка";
+    setState({ status: "error", message: msg });
+  }
+}
+
+void init();

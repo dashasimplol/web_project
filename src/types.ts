@@ -13,7 +13,7 @@ export interface Recipe {
 }
 
 export type RecipeDraft = Omit<Recipe, "id" | "favorite">;
-
+export type NewRecipe = Omit<Recipe, "id">;
 export type RecipeFilter = {
   query: string;
   category: Category | "Все";
