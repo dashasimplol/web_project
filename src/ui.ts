@@ -124,4 +124,5 @@ export function renderMessage(text: string): void {
     p.textContent = text;
     recipeList.append(p);
 }
+export const retryButton = requireElement<HTMLButtonElement>("#retry-button");
 
